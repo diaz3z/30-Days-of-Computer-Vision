@@ -27,7 +27,8 @@ while True:
 
     cv2.imshow('frame', frame)
 
-    cv2.waitKey(0)
+    cv2.waitKey(25)
+
 
 cap.release()
 cv2.destroyAllWindows()
