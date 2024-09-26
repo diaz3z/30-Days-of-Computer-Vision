@@ -9,8 +9,10 @@ import torch
 import numpy as np
 from PIL import Image, ImageTk
 import threading
+import re
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
 # Define functions first
 def select_gpu():
     if torch.cuda.is_available():
@@ -40,11 +42,10 @@ def perform_ocr(image_path, method):
             image_path = "temp_preprocessed.jpg"
 
         if method == "EasyOCR":
-            reader = easyocr.Reader(['en', 'ar'])
+            reader = easyocr.Reader(['en'])
             result = reader.readtext(image_path)
-            # Filter out unsupported characters
             text = ' '.join([text[1] for text in result])
-            return text.encode('utf-8', 'ignore').decode('utf-8')  # Ignore unsupported characters
+            return text.encode('utf-8', 'ignore').decode('utf-8')
         elif method == "Pytesseract":
             image = Image.open(image_path)
             return pytesseract.image_to_string(image)
@@ -52,7 +53,10 @@ def perform_ocr(image_path, method):
             pipeline = keras_ocr.pipeline.Pipeline()
             images = [keras_ocr.tools.read(image_path)]
             prediction_groups = pipeline.recognize(images)
-            return ' '.join([text[0] for text in prediction_groups[0]])
+            text = ''
+            for prediction in prediction_groups[0]:
+                text += prediction[0] + ' '
+            return text.strip()
         else:
             return "Invalid OCR method selected"
     except Exception as e:
@@ -62,7 +66,7 @@ def upload_image():
     file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.png *.jpg *.jpeg *.bmp *.tiff")])
     if file_path:
         image = Image.open(file_path)
-        image.thumbnail((window_width // 2 - 100, window_height - 100))  # Resize image to fit the window
+        image.thumbnail((300, 300))  # Set a fixed size for the image
         photo = ImageTk.PhotoImage(image)
         image_label.configure(image=photo, text="")
         image_label.image = photo
@@ -71,7 +75,8 @@ def upload_image():
 def perform_ocr_thread():
     progress_bar.start()
     result = perform_ocr(window.image_path, ocr_combobox.get())
-    result_label.configure(text=result)
+    result_textbox.delete("1.0", tk.END)  # Clear previous text
+    result_textbox.insert(tk.END, result)  # Insert new result
     progress_bar.stop()
     progress_bar.set(0)
 
@@ -85,7 +90,8 @@ def perform_ocr_on_image():
         
         threading.Thread(target=perform_ocr_thread).start()
     else:
-        result_label.configure(text="Please upload an image first.")
+        result_textbox.delete("1.0", tk.END)  # Clear previous text
+        result_textbox.insert(tk.END, "Please upload an image first.")  # Show message
 
 # Set up the main window
 customtkinter.set_appearance_mode("System")
@@ -123,13 +129,17 @@ image_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
 result_frame = customtkinter.CTkFrame(right_frame)
 result_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
 
-# Image display
-image_label = customtkinter.CTkLabel(image_frame, text="No image selected")
-image_label.pack(pady=10, fill="both", expand=True)
+# Image display with fixed size
+image_label = customtkinter.CTkLabel(image_frame, text="No image selected", width=300, height=300)
+image_label.pack(pady=10, fill="both", expand=False)
 
-# OCR result display
-result_label = customtkinter.CTkLabel(result_frame, text="OCR Result will appear here")
-result_label.pack(pady=10, fill="both", expand=True)
+# Scrollable text area for OCR results
+result_textbox = customtkinter.CTkTextbox(result_frame, width=400, height=300)
+result_textbox.pack(pady=10, fill="both", expand=False)
+
+# Button to upload image
+upload_button = customtkinter.CTkButton(left_frame, text="Upload Image", command=upload_image, width=180)
+upload_button.pack(pady=10)
 
 # OCR method selection
 ocr_methods = ["EasyOCR", "Pytesseract", "Keras-OCR"]
@@ -149,10 +159,6 @@ preprocessing_combobox = customtkinter.CTkComboBox(left_frame, values=preprocess
 preprocessing_combobox.pack(pady=10)
 preprocessing_combobox.set("Select preprocessing")
 
-# Button to upload image
-upload_button = customtkinter.CTkButton(left_frame, text="Upload Image", command=upload_image, width=180)
-upload_button.pack(pady=10)
-
 # Button to perform OCR
 ocr_button = customtkinter.CTkButton(left_frame, text="Perform OCR", command=perform_ocr_on_image, width=180)
 ocr_button.pack(pady=10)
@@ -164,4 +170,3 @@ progress_bar.set(0)
 
 # Start the Tkinter event loop
 window.mainloop()
-
