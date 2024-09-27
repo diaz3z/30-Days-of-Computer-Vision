@@ -51,8 +51,8 @@ def perform_ocr(image_path, method):
             return pytesseract.image_to_string(image)
         elif method == "Keras-OCR":
             pipeline = keras_ocr.pipeline.Pipeline()
-            images = [keras_ocr.tools.read(image_path)]
-            prediction_groups = pipeline.recognize(images)
+            image = keras_ocr.tools.read(image_path)
+            prediction_groups = pipeline.recognize([image])
             text = ''
             for prediction in prediction_groups[0]:
                 text += prediction[0] + ' '
@@ -66,7 +66,21 @@ def upload_image():
     file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.png *.jpg *.jpeg *.bmp *.tiff")])
     if file_path:
         image = Image.open(file_path)
-        image.thumbnail((300, 300))  # Set a fixed size for the image
+        # Get the original aspect ratio
+        original_width, original_height = image.size
+        frame_width = image_frame.winfo_width()
+        frame_height = image_frame.winfo_height()
+
+        # Calculate the new size while maintaining the aspect ratio
+        aspect_ratio = original_width / original_height
+        if frame_width / frame_height > aspect_ratio:
+            new_width = frame_height * aspect_ratio
+            new_height = frame_height
+        else:
+            new_width = frame_width
+            new_height = frame_width / aspect_ratio
+
+        image = image.resize((int(new_width), int(new_height)), Image.ANTIALIAS)  # Resize to fit the frame
         photo = ImageTk.PhotoImage(image)
         image_label.configure(image=photo, text="")
         image_label.image = photo
@@ -130,11 +144,11 @@ result_frame = customtkinter.CTkFrame(right_frame)
 result_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
 
 # Image display with fixed size
-image_label = customtkinter.CTkLabel(image_frame, text="No image selected", width=300, height=300)
+image_label = customtkinter.CTkLabel(image_frame, text="No image selected", width=100, height=100)
 image_label.pack(pady=10, fill="both", expand=False)
 
 # Scrollable text area for OCR results
-result_textbox = customtkinter.CTkTextbox(result_frame, width=400, height=300)
+result_textbox = customtkinter.CTkTextbox(result_frame, width=400, height=900)
 result_textbox.pack(pady=10, fill="both", expand=False)
 
 # Button to upload image
