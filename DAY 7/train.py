@@ -19,10 +19,10 @@ model.fit(x_train, y_train)
 
 y_predict = model.predict(x_test)
 
-score = accuracy_score(y_predict, y_test)
+score = accuracy_score(y_test, y_predict)
 
 print('{}% of samples were classified correctly !'.format(score * 100))
 
-f = open('model.p', 'wb')
+f = open('model2.p', 'wb')
 pickle.dump({'model': model}, f)
 f.close()
